@@ -1,5 +1,5 @@
 {
-  "name": "Isca GMN | Questionário 12 perguntas | Relatório |  “Por que meu negócio não aparece no Google?”",
-  "description": "Um formulário interativo mobile-first para captação de leads focada em otimização de Perfil de Empresa no Google (GMN) com fluxo de perguntas e relatório final do GMN",
+  "name": "APP de formulário para GMN",
+  "description": "Um formulário interativo mobile-first para captação de leads focada em otimização de Perfil de Empresa no Google (GMN) com integração para salvar dados no Google Sheets.",
   "requestFramePermissions": []
 }
