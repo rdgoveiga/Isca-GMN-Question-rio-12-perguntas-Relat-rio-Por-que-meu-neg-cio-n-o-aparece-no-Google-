@@ -9,8 +9,9 @@ import { GoogleGenAI } from "@google/genai";
 import { STEPS, THEME, generateDiagnosticData, DiagnosticResult, ReportCategory } from './constants';
 import { FormData } from './types';
 
-const WHATSAPP_LINK = "https://wa.me/5521985899548?text=Ol%C3%A1!%20Finalizei%20meu%20diagn%C3%B3stico%20e%20quero%20saber%20como%20subir%20meu%20score%20no%20Google.";
+// O Webhook do Google Sheets via Apps Script funciona melhor com POST + no-cors + URLSearchParams
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycby9O59l0TD_Z5LAg4LdmJEo6iqSvSaOEfSwAUQ2DoVNoE_XC1OdoJWNV-ii9mhbNEok/exec"; 
+const MY_PHONE = "5521985899548";
 
 const GlobalStyles = () => (
   <style>{`
@@ -114,7 +115,25 @@ const SkippLogo = () => (
   </div>
 );
 
-const SalesPage = ({ data, onReset }: { data: DiagnosticResult, onReset: () => void }) => {
+const SalesPage = ({ data, originalData, onReset }: { data: DiagnosticResult, originalData: FormData, onReset: () => void }) => {
+  // Link dinâmico com frase humanizada no início atualizada conforme pedido do usuário
+  const whatsappLink = useMemo(() => {
+    const intro = `Oi! Acabei de fazer o diagnóstico do meu perfil no Google e quero saber como posso vender mais com a ajuda de vocês.%0A%0ASegue abaixo o meu diagnóstico:%0A%0A`;
+    const header = `*RELATÓRIO TÉCNICO*%0A`;
+    const leadInfo = `👤 Nome: ${data.name}%0A📱 WhatsApp: ${originalData[12]}%0A🔗 Perfil: ${originalData[13] || 'Não enviado'}%0A%0A`;
+    const scoreInfo = `📊 *Score Final: ${data.overallScore}%* (${data.archetype})%0A💡 Insight: ${data.mainInsight}%0A%0A`;
+    
+    // Mapear perguntas estruturadas
+    const answersText = STEPS
+      .filter(s => s.type !== 'info' && s.id < 11) 
+      .map(s => `• ${s.title}: _${originalData[s.id] || 'N/A'}_`)
+      .join('%0A');
+
+    const footer = `%0A%0A_Auditado via Skipp Digital Intelligence_`;
+    
+    return `https://wa.me/${MY_PHONE}?text=${intro}${header}${leadInfo}${scoreInfo}*DETALHAMENTO:*%0A${answersText}${footer}`;
+  }, [data, originalData]);
+
   return (
     <div className="h-screen w-full max-w-md mx-auto bg-gray-50/50 overflow-y-auto no-scrollbar pb-32 pt-8 px-6">
       <GlobalStyles />
@@ -173,14 +192,14 @@ const SalesPage = ({ data, onReset }: { data: DiagnosticResult, onReset: () => v
 
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-50">
         <a 
-          href={WHATSAPP_LINK}
+          href={whatsappLink}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full py-6 rounded-[2rem] text-white font-black text-lg shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 animate-pulse-subtle"
           style={{ background: THEME.success }}
         >
           <Send size={20} />
-          Recuperar meu Ranking
+          Falar com um Especialista
         </a>
       </div>
 
@@ -194,7 +213,7 @@ const SubmissionLoading = ({ isAnalyzing, isSaving }: { isAnalyzing: boolean, is
     <GlobalStyles />
     <SkippLogo />
     <div className="relative mb-10">
-      <div className="w-32 h-32 rounded-full border-2 border-gray-50 flex items-center justify-center">
+      <div className="w-32 h-32 rounded-full border-2 border-gray-100 flex items-center justify-center">
         <Loader2 size={48} className="text-blue-500 animate-spin" />
       </div>
       <div className="absolute inset-0 flex items-center justify-center">
@@ -202,13 +221,13 @@ const SubmissionLoading = ({ isAnalyzing, isSaving }: { isAnalyzing: boolean, is
       </div>
     </div>
     <h2 className="text-2xl font-black text-gray-900 mb-4 leading-tight">
-      {isAnalyzing ? 'Analisando seu Perfil...' : isSaving ? 'Segurança de Dados...' : 'Gerando Diagnóstico...'}
+      {isAnalyzing ? 'Processando Auditoria...' : isSaving ? 'Salvando Dados...' : 'Finalizando...'}
     </h2>
     <div className="w-48 bg-gray-100 h-1.5 rounded-full overflow-hidden">
         <div className="h-full bg-blue-500 animate-[progress-grow_3s_ease-in-out_infinite]" />
     </div>
     <p className="text-[10px] font-bold text-gray-400 mt-6 uppercase tracking-[0.2em] max-w-[200px] leading-relaxed">
-      {isAnalyzing ? 'Simulando busca local do Google via API.' : 'Protegendo informações sob protocolos de criptografia.'}
+      Sincronizando com a base de dados central.
     </p>
   </div>
 );
@@ -241,17 +260,27 @@ const App: React.FC = () => {
     if (isSubmitting || isSubmitted) return;
     setIsSubmitting(true);
     
-    const friendlyAnswers: Record<string, string> = {
-      timestamp: new Date().toLocaleString('pt-BR'),
-      nome: String(formData[11] || ''),
-      whatsapp: String(formData[12] || ''),
-      perfil: String(formData[13] || '')
-    };
+    // Preparação dos dados estruturada para o Sheet
+    const payload = new URLSearchParams();
+    payload.append('timestamp', new Date().toLocaleString('pt-BR'));
+    payload.append('nome', String(formData[11] || ''));
+    payload.append('whatsapp', String(formData[12] || ''));
+    payload.append('perfil_link', String(formData[13] || ''));
 
-    if (friendlyAnswers.perfil && friendlyAnswers.perfil.length > 5) {
+    STEPS.forEach(step => {
+      if (step.id <= 10) {
+        const value = formData[step.id];
+        payload.append(`q${step.id}_${step.title.substring(0, 20)}`, String(value || 'N/A'));
+      }
+    });
+
+    if (formData[13] && String(formData[13]).length > 5) {
       setIsAnalyzing(true);
-      const analysis = await analyzeProfile(friendlyAnswers.perfil, friendlyAnswers);
-      if (analysis) setAiAnalysisResult(analysis);
+      const analysis = await analyzeProfile(String(formData[13]), { nome: String(formData[11]) });
+      if (analysis) {
+        setAiAnalysisResult(analysis);
+        payload.append('ai_analysis', analysis);
+      }
       setIsAnalyzing(false);
     }
 
@@ -260,11 +289,13 @@ const App: React.FC = () => {
       await fetch(WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ ...friendlyAnswers, ...formData })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: payload.toString()
       });
-      await new Promise(r => setTimeout(r, 600));
-    } catch (e) {} finally {
+      await new Promise(r => setTimeout(r, 1000));
+    } catch (e) {
+      console.warn("Webhook bypass");
+    } finally {
       setIsSaving(false);
       setIsSubmitting(false);
       setIsSubmitted(true);
@@ -288,18 +319,17 @@ const App: React.FC = () => {
     const value = formData[currentStep.id];
     if (currentStep.type === 'text') {
       if (currentStep.id === 13) return true;
-      return value && String(value).trim().length > 0;
+      return value && String(value).trim().length > 3;
     }
     return !!value;
   };
 
-  // Move useMemo before early returns to follow Rules of Hooks
   const diagnosticData = useMemo(() => isSubmitted ? generateDiagnosticData(formData, aiAnalysisResult) : null, [isSubmitted, formData, aiAnalysisResult]);
 
   if (isSubmitting) return <SubmissionLoading isAnalyzing={isAnalyzing} isSaving={isSaving} />;
   
   if (isSubmitted && diagnosticData) {
-    return <SalesPage data={diagnosticData} onReset={() => { setCurrentStepIndex(0); setFormData({}); setIsSubmitted(false); setAiAnalysisResult(null); }} />;
+    return <SalesPage data={diagnosticData} originalData={formData} onReset={() => { setCurrentStepIndex(0); setFormData({}); setIsSubmitted(false); setAiAnalysisResult(null); }} />;
   }
 
   return (
