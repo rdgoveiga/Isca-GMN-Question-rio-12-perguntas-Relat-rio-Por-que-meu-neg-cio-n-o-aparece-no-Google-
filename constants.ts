@@ -4,10 +4,13 @@ import { QuestionStep, FormData } from './types';
 export const THEME = {
   primary: '#3B82F6',
   secondary: '#A020F0',
+  success: '#22C55E',
+  warning: '#F59E0B',
+  danger: '#EF4444',
   cardBg: '#EFF6FF',
   textBlack: '#0B0B0B',
   textGray: '#6B6B6B',
-  brandGradient: 'linear-gradient(to right, #3B82F6, #A020F0)',
+  brandGradient: 'linear-gradient(135deg, #3B82F6, #A020F0)',
 };
 
 export const STEPS: QuestionStep[] = [
@@ -42,7 +45,7 @@ export const STEPS: QuestionStep[] = [
     type: 'radio',
     progress: 20,
     title: 'Quando você pesquisa seu serviço no Google, o seu perfil aparece:',
-    subtitle: '(Não pesquise pelo nome da empresa, e sim pelo serviço — como as pessoas normalmente buscam | Ex: Nutricionista em São Paulo ou Pizzaria em Brasília)',
+    subtitle: '(Ex: Nutricionista em São Paulo ou Pizzaria em Brasília)',
     options: [
       { id: 'primeiros', label: 'Entre os primeiros resultados' },
       { id: 'demora', label: 'Aparece, mas demora' },
@@ -161,7 +164,6 @@ export const STEPS: QuestionStep[] = [
     subtitle: '(Opcional, deixe em branco se não souber)',
     placeholder: 'Cole o link aqui',
   },
-  // --- TELA FINAL (REPORT) ---
   {
     id: 14,
     type: 'info',
@@ -171,172 +173,117 @@ export const STEPS: QuestionStep[] = [
   }
 ];
 
-// --- LÓGICA DE GERAÇÃO DO RELATÓRIO DINÂMICO ---
-
-export interface ReportSection {
+export interface ReportCategory {
+  id: string;
   title: string;
-  content: string[];
-  type: 'text' | 'list' | 'alert' | 'highlight';
+  score: number; // 0 a 100
+  status: 'critical' | 'warning' | 'optimal';
+  findings: string[];
 }
 
-export const generateDiagnosticReport = (data: FormData, aiAnalysis?: string | null): ReportSection[] => {
-  const sections: ReportSection[] = [];
+export interface DiagnosticResult {
+  overallScore: number;
+  archetype: string;
+  urgencyLabel: string;
+  mainInsight: string;
+  categories: ReportCategory[];
+  aiAnalysis?: string;
+  name: string;
+}
+
+export const generateDiagnosticData = (data: FormData, aiAnalysis?: string | null): DiagnosticResult => {
   const name = (data[11] as string)?.split(' ')[0] || 'Gestor(a)';
-
-  // --- MAPA DE VARIÁVEIS ---
-  // Respostas Cruciais
-  const R_EXISTE = data[1] === 'sim';
-  const R_CONTATO = data[2] as string; // todos_dias, semana, raramente, nunca
-  const R_VISIBILIDADE = data[3] as string; // primeiros, demora, quase_nunca, nao_aparece
-  const R_CONCORRENTE = data[4] as string; // sim, alguns, nao
-  const R_AVALIACOES = data[5] as string; // nenhuma, 1_10, 11_30, 30_mais
-  const R_RESPOSTA = data[6] as string; // sempre, raramente, nunca
-  const R_UPDATES = data[7] as string; // toda_semana, mes, raramente, nunca
-  const R_OBJETIVO = data[10] as string; // agenda, independencia, faturamento, tranquilidade
-
-  // --- 1. DEFINIÇÃO DO ARQUÉTIPO (NÍVEL DE SAÚDE) ---
-  let archetype = "";
-  let urgencyLevel = "";
-
-  if (!R_EXISTE || data[1] === 'nao' || data[1] === 'nao_certeza') {
-    archetype = "OFFLINE";
-    urgencyLevel = "CRÍTICO";
-  } else if ((R_VISIBILIDADE === 'primeiros' || R_VISIBILIDADE === 'demora') && (R_CONTATO === 'raramente' || R_CONTATO === 'nunca')) {
-    archetype = "VITRINE_FANTASMA"; // Aparece mas não converte
-    urgencyLevel = "ALERTA MÁXIMO";
-  } else if ((R_VISIBILIDADE === 'quase_nunca' || R_VISIBILIDADE === 'nao_aparece')) {
-    archetype = "INVISIVEL";
-    urgencyLevel = "SEVERO";
-  } else if (R_UPDATES === 'nunca' || R_UPDATES === 'raramente') {
-    archetype = "ESTAGNADO";
-    urgencyLevel = "MODERADO";
-  } else {
-    archetype = "SUBUTILIZADO";
-    urgencyLevel = "OPORTUNIDADE";
-  }
-
-  // --- 2. TÍTULO DINÂMICO ---
-  let mainTitle = "";
-  let mainDesc = "";
-
-  switch (archetype) {
-    case "OFFLINE":
-      mainTitle = `Status: Inexistência Digital (Nível ${urgencyLevel})`;
-      mainDesc = "Não detectamos indexação ativa. Atualmente, 100% da demanda de busca local pelo seu serviço está sendo desviada para a concorrência.";
-      break;
-    case "VITRINE_FANTASMA":
-      mainTitle = `Status: Dissonância de Conversão (Nível ${urgencyLevel})`;
-      mainDesc = `Detectamos uma anomalia grave: seu perfil tem impressões, mas falha na conversão final. O tráfego chega, mas é repelido por falta de validação técnica de autoridade.`;
-      break;
-    case "INVISIVEL":
-      mainTitle = `Status: Supressão de Visibilidade (Nível ${urgencyLevel})`;
-      mainDesc = "Seu perfil entrou na 'Zona de Amortecimento' do Google. O algoritmo removeu sua prioridade de exibição devido à baixa emissão de sinais de relevância.";
-      break;
-    case "ESTAGNADO":
-      mainTitle = `Status: Decaimento de Sinais (Nível ${urgencyLevel})`;
-      mainDesc = "O perfil existe, mas opera com dados expirados (Stale Data). O Google prioriza informações frescas, o que coloca sua empresa em desvantagem progressiva.";
-      break;
-    default:
-      mainTitle = `Status: Capacidade Ociosa`;
-      mainDesc = "Sua empresa está operando abaixo do potencial de captura de mercado. Existem camadas de otimização inexploradas que poderiam dobrar sua exposição.";
-  }
-
-  // INSERÇÃO DA IA OU DIAGNÓSTICO PRINCIPAL
-  if (aiAnalysis) {
-    sections.push({ title: "Análise de Algoritmo (I.A.)", content: [aiAnalysis], type: 'highlight' });
-    sections.push({ title: "Diagnóstico Técnico Estrutural", content: [mainDesc], type: 'text' });
-  } else {
-    sections.push({ title: mainTitle, content: [mainDesc], type: 'highlight' });
-  }
-
-  // --- 3. CONSTRUÇÃO DOS PONTOS DE ATRITO (Variável por resposta específica) ---
-  const blocks: string[] = [];
-
-  // Variavel A: Concorrência (Baseado na Q4)
-  if (R_CONCORRENTE === 'sim') {
-    blocks.push("Deslocamento Competitivo: O algoritmo identificou perfis concorrentes com 'Data Points' (pontos de dados) mais estruturados, concedendo a eles a preferência de ranking (Rank Brain preference).");
-  } else if (R_CONCORRENTE === 'alguns') {
-    blocks.push("Instabilidade de Posicionamento: Sua empresa aparece intermitentemente, indicando que seu 'Quality Score' está no limiar mínimo para exibição, sendo facilmente superado.");
-  }
-
-  // Variavel B: Avaliações (Baseado na Q5)
-  if (R_AVALIACOES === 'nenhuma') {
-    blocks.push("Vazio de Confiança (Trust Void): A ausência total de validação social impede a ativação dos gatilhos de conversão. O usuário moderno interpreta 'zero avaliações' como 'empresa de risco'.");
-  } else if (R_AVALIACOES === '1_10') {
-    blocks.push("Volume Crítico Insuficiente: A densidade atual de avaliações não gera peso estatístico suficiente para o Google validar sua empresa como Autoridade Regional.");
-  } else {
-    // Se tem avaliações, verifica a resposta (Q6)
-    if (R_RESPOSTA === 'nunca' || R_RESPOSTA === 'raramente') {
-      blocks.push("Quebra de Protocolo de Engajamento: O Google monitora a 'Taxa de Resposta do Proprietário'. A ausência de interação técnica sinaliza abandono, penalizando o alcance.");
-    }
-  }
-
-  // Variavel C: Atualizações (Baseado na Q7)
-  if (R_UPDATES === 'nunca' || R_UPDATES === 'raramente') {
-    blocks.push("Obsolescência de Metadados: O Googlebot varre perfis em busca de 'Freshness' (novidade). A estática do perfil envia sinais de que o negócio pode estar inoperante.");
-  } else if (R_UPDATES === 'mes') {
-    blocks.push("Ciclos de Indexação Irregulares: A injeção de dados intermitente impede a criação de uma curva de crescimento sólida no gráfico de impressões do buscador.");
-  }
-
-  // Variavel D: Profissionalismo (Baseado na Q8)
-  if (data[8] === 'nao' || data[8] === 'mais_menos') {
-    blocks.push("Deficit de Identidade Visual: O perfil não comunica os atributos de marca necessários para justificar o preço ou a qualidade do serviço, gerando rejeição imediata.");
-  }
-
-  sections.push({
-    title: "Auditoria de Fricção (Pontos de Falha)",
-    content: blocks.length > 0 ? blocks : ["Subutilização geral dos recursos da plataforma (Google Business Profile API)."],
-    type: 'list'
-  });
-
-  // --- 4. PREVISÃO DE CENÁRIO (Baseado no Objetivo Q10) ---
-  // Aqui conectamos o problema técnico ao desejo emocional do usuário
-  let futureScenario = "";
   
-  switch (R_OBJETIVO) {
-    case 'faturamento':
-      futureScenario = "Correção do CAC (Custo de Aquisição): Ao ajustar a indexação, o perfil passa a atrair tráfego orgânico qualificado, reduzindo a dependência de descontos ou anúncios pagos para gerar receita.";
-      break;
-    case 'agenda':
-      futureScenario = "Previsibilidade de Fluxo: Um perfil tecnicamente saudável gera uma curva de demanda constante, eliminando os 'vales' na agenda e permitindo planejamento financeiro.";
-      break;
-    case 'independencia':
-      futureScenario = "Ativo Proprietário: Deixar de depender do 'boca a boca' instável e transformar o Google em um canal de aquisição automática que funciona 24/7.";
-      break;
-    case 'tranquilidade':
-      futureScenario = "Automação de Autoridade: O perfil trabalhará como um filtro, respondendo dúvidas e quebrando objeções automaticamente antes mesmo do cliente entrar em contato.";
-      break;
-    default:
-      futureScenario = "Otimização de Conversão: Transformar visualizações passivas em ações de contato rastreáveis.";
+  // Cálculo de Score por pilares
+  let visibilidadeScore = 0;
+  let autoridadeScore = 0;
+  let engajamentoScore = 0;
+
+  // 1. Visibilidade (Q1, Q3, Q4)
+  if (data[1] === 'sim') visibilidadeScore += 20;
+  if (data[3] === 'primeiros') visibilidadeScore += 40;
+  else if (data[3] === 'demora') visibilidadeScore += 20;
+  if (data[4] === 'nao') visibilidadeScore += 40;
+  else if (data[4] === 'alguns') visibilidadeScore += 15;
+
+  // 2. Autoridade (Q5, Q8)
+  if (data[5] === '30_mais') autoridadeScore += 60;
+  else if (data[5] === '11_30') autoridadeScore += 40;
+  else if (data[5] === '1_10') autoridadeScore += 10;
+  if (data[8] === 'sim') autoridadeScore += 40;
+  else if (data[8] === 'mais_menos') autoridadeScore += 15;
+
+  // 3. Engajamento (Q2, Q6, Q7)
+  if (data[2] === 'todos_dias') engajamentoScore += 30;
+  else if (data[2] === 'semana') engajamentoScore += 15;
+  if (data[6] === 'sempre') engajamentoScore += 35;
+  else if (data[6] === 'as_vezes') engajamentoScore += 15;
+  if (data[7] === 'toda_semana') engajamentoScore += 35;
+  else if (data[7] === 'mes') engajamentoScore += 15;
+
+  const overallScore = Math.round((visibilidadeScore + autoridadeScore + engajamentoScore) / 3);
+  
+  const categories: ReportCategory[] = [
+    {
+      id: 'vis',
+      title: 'Visibilidade Local',
+      score: visibilidadeScore,
+      status: visibilidadeScore < 40 ? 'critical' : visibilidadeScore < 75 ? 'warning' : 'optimal',
+      findings: visibilidadeScore < 40 
+        ? ['Inexistência de ranking para palavras-chave principais.', 'Concorrência domina 100% da área de cobertura.'] 
+        : visibilidadeScore < 75 
+        ? ['Aparece intermitentemente apenas para buscas específicas.', 'Padrão de ranking instável (Efeito Gangorra).']
+        : ['Excelente posicionamento geográfico.', 'Domínio das primeiras posições locais.']
+    },
+    {
+      id: 'aut',
+      title: 'Autoridade e Trust',
+      score: autoridadeScore,
+      status: autoridadeScore < 40 ? 'critical' : autoridadeScore < 75 ? 'warning' : 'optimal',
+      findings: autoridadeScore < 40
+        ? ['Vazio de confiança: zero ou baixas avaliações.', 'Identidade visual amadora ou desatualizada.']
+        : autoridadeScore < 75
+        ? ['Volume de avaliações insuficiente para gerar segurança absoluta.', 'Falta de prova social constante.']
+        : ['Perfil transmite segurança e liderança de mercado.', 'Forte presença de depoimentos positivos.']
+    },
+    {
+      id: 'eng',
+      title: 'Atividade e Sinais',
+      score: engajamentoScore,
+      status: engajamentoScore < 40 ? 'critical' : engajamentoScore < 75 ? 'warning' : 'optimal',
+      findings: engajamentoScore < 40
+        ? ['Sinal de abandono detectado pelo robô do Google.', 'Ausência crítica de interação com usuários.']
+        : engajamentoScore < 75
+        ? ['Atualizações esporádicas prejudicam a "freshness".', 'Taxa de resposta abaixo do ideal estratégico.']
+        : ['Perfil altamente ativo com alimentação constante de dados.', 'Excelente engajamento com o público.']
+    }
+  ];
+
+  let archetype = "";
+  let urgencyLabel = "";
+  let mainInsight = "";
+
+  if (overallScore < 35) {
+    archetype = "Inexistente";
+    urgencyLabel = "CRÍTICO";
+    mainInsight = "Seu perfil está tecnicamente 'invisível'. O Google não confia no seu negócio o suficiente para indicá-lo aos clientes da sua região.";
+  } else if (overallScore < 60) {
+    archetype = "Subutilizado";
+    urgencyLabel = "ALERTA";
+    mainInsight = "Você tem uma ferramenta potente, mas está usando apenas 20% da capacidade. A concorrência está capturando leads que deveriam ser seus.";
+  } else {
+    archetype = "Otimizável";
+    urgencyLabel = "OPORTUNIDADE";
+    mainInsight = "Seu perfil é bom, mas faltam ajustes finos de indexação para você dominar completamente a primeira posição e aumentar o ticket médio.";
   }
 
-  sections.push({
-    title: "Projeção de Otimização",
-    content: [
-      futureScenario,
-      "Recuperação de Ranking: Retomada das posições de destaque para palavras-chave transacionais (que indicam intenção de compra).",
-      "Indexação Semântica: Ensinar o Google exatamente quem é o seu cliente ideal para que ele pare de entregar tráfego sujo."
-    ],
-    type: 'text'
-  });
-
-  // --- 5. ALERTA E FECHAMENTO ---
-  sections.push({
-    title: "Protocolo de Segurança",
-    content: [
-      "Atenção: Correções intuitivas (feitas sem base técnica) frequentemente resultam em bloqueios. O algoritmo do Google é sensível a alterações bruscas de dados."
-    ],
-    type: 'alert'
-  });
-
-  sections.push({
-    title: `Conclusão para ${name}`,
-    content: [
-      `Sua configuração atual está classificada como '${urgencyLevel}'.`,
-      "Existe uma lacuna técnica entre como sua empresa opera no mundo real e como ela é lida pelo robô do Google. Fechar essa lacuna é o único caminho para desbloquear a demanda da sua região."
-    ],
-    type: 'text'
-  });
-
-  return sections;
+  return {
+    overallScore,
+    archetype,
+    urgencyLabel,
+    mainInsight,
+    categories,
+    aiAnalysis: aiAnalysis || undefined,
+    name
+  };
 };
