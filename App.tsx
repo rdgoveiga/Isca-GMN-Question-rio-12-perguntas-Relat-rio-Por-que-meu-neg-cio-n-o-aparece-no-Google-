@@ -8,14 +8,7 @@ import { FormData } from './types';
 const SUCCESS_GREEN = '#22C55E';
 const WHATSAPP_LINK = "https://wa.me/5521985899548?text=Ol%C3%A1!%20Li%20meu%20Relat%C3%B3rio%20de%20Diagn%C3%B3stico%20e%20gostaria%20de%20entender%20qual%20o%20caminho%20seguro%20para%20ajustar%20meu%20perfil.";
 
-// Script URL para Google Sheets atualizado conforme solicitação
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycby9O59l0TD_Z5LAg4LdmJEo6iqSvSaOEfSwAUQ2DoVNoE_XC1OdoJWNV-ii9mhbNEok/exec"; 
-
-/**
- * DICA PARA O USUÁRIO:
- * Para este webhook funcionar, você deve criar um Google Apps Script na sua planilha com a função doPost(e).
- * O script deve receber o JSON e inserir uma nova linha com as chaves correspondentes.
- */
 
 const GlobalStyles = () => (
   <style>{`
@@ -198,48 +191,54 @@ const App: React.FC = () => {
     try {
       if (!process.env.API_KEY) return null;
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Atue como AUDITOR SÊNIOR. Gere um parágrafo único de "Diagnóstico de Impacto Técnico" para o link ${link} e respostas ${JSON.stringify(answers)}. Aponte falhas invisíveis. Use termos como: Indexação, Sinais de Relevância, Score de Autoridade. Seja conciso (máximo 50 palavras).`;
+      const prompt = `Atue como AUDITOR SÊNIOR. Gere um parágrafo único de "Diagnóstico de Impacto Técnico" para o link ${link} e respostas ${JSON.stringify(answers)}. Aponte falhas invisíveis de Perfil de Empresa no Google. Use termos como: Indexação, Sinais de Relevância, Score de Autoridade. Seja conciso (máximo 50 palavras).`;
       const result = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
       return result.text;
-    } catch (e) { return null; }
+    } catch (e) { 
+      console.error("Erro na análise Gemini:", e);
+      return null; 
+    }
   };
 
-  const submitLead = async (data: FormData) => {
+  const submitLead = async () => {
     if (isSubmitting || isSubmitted) return;
     setIsSubmitting(true);
     
-    // 1. Mapeamento amigável para a planilha
     const friendlyAnswers: Record<string, string> = {
       timestamp: new Date().toLocaleString('pt-BR'),
-      nome: String(data[11] || ''),
-      whatsapp: String(data[12] || ''),
-      perfil_google: String(data[13] || ''),
-      possui_perfil: String(data[1] || ''),
-      frequencia_contato: String(data[2] || ''),
-      visibilidade: String(data[3] || ''),
-      concorrencia: String(data[4] || ''),
-      avaliacoes: String(data[5] || ''),
-      responde_avaliacoes: String(data[6] || ''),
-      frequencia_updates: String(data[7] || ''),
-      profissionalismo: String(data[8] || ''),
-      frase_momento: String(data[9] || ''),
-      objetivo: String(data[10] || ''),
+      nome: String(formData[11] || ''),
+      whatsapp: String(formData[12] || ''),
+      perfil_google: String(formData[13] || ''),
+      possui_perfil: String(formData[1] || ''),
+      frequencia_contato: String(formData[2] || ''),
+      visibilidade: String(formData[3] || ''),
+      concorrencia: String(formData[4] || ''),
+      avaliacoes: String(formData[5] || ''),
+      responde_avaliacoes: String(formData[6] || ''),
+      frequencia_updates: String(formData[7] || ''),
+      profissionalismo: String(formData[8] || ''),
+      frase_momento: String(formData[9] || ''),
+      objetivo: String(formData[10] || ''),
       device: window.innerWidth < 768 ? 'Mobile' : 'Desktop',
       utm_source: new URLSearchParams(window.location.search).get('utm_source') || 'direto'
     };
 
-    // 2. Análise da IA
+    // 1. Análise da IA
     if (friendlyAnswers.perfil_google && friendlyAnswers.perfil_google.length > 5) {
       setIsAnalyzing(true);
-      const analysis = await analyzeProfileWithGemini(friendlyAnswers.perfil_google, friendlyAnswers);
-      if (analysis) {
-        setAiAnalysisResult(analysis);
-        friendlyAnswers['analise_ia'] = analysis;
+      try {
+        const analysis = await analyzeProfileWithGemini(friendlyAnswers.perfil_google, friendlyAnswers);
+        if (analysis) {
+          setAiAnalysisResult(analysis);
+          friendlyAnswers['analise_ia'] = analysis;
+        }
+      } catch (err) {
+        console.warn("IA falhou, continuando sem análise.");
       }
       setIsAnalyzing(false);
     }
 
-    // 3. Salvamento na Base de Dados (Google Sheets via Webhook)
+    // 2. Salvamento na Planilha
     setIsSaving(true);
     try {
       await fetch(WEBHOOK_URL, {
@@ -248,7 +247,8 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(friendlyAnswers)
       });
-      await new Promise(r => setTimeout(r, 1000));
+      // Pequeno delay para UX
+      await new Promise(r => setTimeout(r, 800));
     } catch (e) {
       console.error("Erro ao salvar dados:", e);
     } finally {
@@ -260,11 +260,10 @@ const App: React.FC = () => {
 
   const handleNext = useCallback(() => {
     if (currentStepIndex < STEPS.length - 1) {
-       if (currentStepIndex === STEPS.length - 2) {
-         submitLead(formData);
-       } else {
-         setCurrentStepIndex(prev => prev + 1);
-       }
+       setCurrentStepIndex(prev => prev + 1);
+    } else if (currentStepIndex === STEPS.length - 1) {
+       // Se estiver na última etapa (info), dispara o envio
+       submitLead();
     }
   }, [currentStepIndex, formData]);
 
@@ -282,7 +281,7 @@ const App: React.FC = () => {
     if (currentStep.type === 'info') return true;
     const value = formData[currentStep.id];
     if (currentStep.type === 'text') {
-      if (currentStep.id === 13) return true; 
+      if (currentStep.id === 13) return true; // Link é opcional
       return value && String(value).trim().length > 0;
     }
     return !!value;
@@ -290,6 +289,9 @@ const App: React.FC = () => {
 
   const handleBack = () => { if (currentStepIndex > 0) setCurrentStepIndex(prev => prev - 1); };
   const handleReset = () => { setCurrentStepIndex(0); setFormData({}); setIsSubmitted(false); setIsSubmitting(false); setAiAnalysisResult(null); };
+
+  if (isSubmitting) return <SubmissionLoading isAnalyzing={isAnalyzing} isSaving={isSaving} />;
+  if (isSubmitted) return <SalesPage onReset={handleReset} formData={formData} aiAnalysis={aiAnalysisResult} />;
 
   return (
     <div className="h-screen bg-white flex flex-col max-w-md mx-auto relative overflow-hidden">
@@ -333,7 +335,7 @@ const App: React.FC = () => {
               })}
             </div>
           ) : (
-             <div className="flex flex-col items-center gap-6">
+             <div className="flex flex-col items-center gap-6 animate-slide-up-fade">
                 <p className="text-center text-gray-400 text-sm font-medium">Seu diagnóstico personalizado está concluído e pronto para ser visualizado.</p>
                 <button onClick={handleNext} className="w-full py-6 rounded-[2rem] text-white font-black text-lg shadow-xl flex items-center justify-center gap-2 animate-pulse-cta" style={{ background: THEME.brandGradient }}>
                   Visualizar Agora
