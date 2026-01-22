@@ -1,6 +1,10 @@
 
 import { QuestionStep, FormData } from './types';
 
+// CONFIGURAÇÃO DO PIXEL DO FACEBOOK
+// Substitua '123456789012345' pelo ID do seu Pixel
+export const FACEBOOK_PIXEL_ID = '1594556251572961';
+
 export const THEME = {
   primary: '#3B82F6',
   secondary: '#A020F0',

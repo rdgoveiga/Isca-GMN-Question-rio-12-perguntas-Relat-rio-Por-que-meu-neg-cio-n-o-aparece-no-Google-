@@ -1,17 +1,24 @@
-
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   ChevronLeft, RotateCcw, CheckCircle2, FileText, AlertTriangle, 
   Send, Loader2, Database, Shield, Zap, Search, MapPin, 
   ArrowRight, Info, AlertCircle, TrendingDown, Target, BarChart3, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
-import { STEPS, THEME, generateDiagnosticData, DiagnosticResult, ReportCategory } from './constants';
+import { STEPS, THEME, generateDiagnosticData, DiagnosticResult, ReportCategory, FACEBOOK_PIXEL_ID } from './constants';
 import { FormData } from './types';
 
 // O Webhook do Google Sheets via Apps Script funciona melhor com POST + no-cors + URLSearchParams
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycby9O59l0TD_Z5LAg4LdmJEo6iqSvSaOEfSwAUQ2DoVNoE_XC1OdoJWNV-ii9mhbNEok/exec"; 
 const MY_PHONE = "5521985899548";
+
+// Declaração global para evitar erros de TS com o pixel
+declare global {
+  interface Window {
+    fbq: any;
+    _fbq: any;
+  }
+}
 
 const GlobalStyles = () => (
   <style>{`
@@ -54,9 +61,35 @@ const App: React.FC = () => {
 
   const currentStep = STEPS[currentStepIndex] || STEPS[0];
 
+  // Injeção do Pixel do Facebook
+  useEffect(() => {
+    if (FACEBOOK_PIXEL_ID && (FACEBOOK_PIXEL_ID as string) !== '123456789012345') {
+      // Base Code do Meta Pixel
+      (function(f:any,b:any,e:any,v:any,n?:any,t?:any,s?:any){
+        if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)
+      })(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      
+      window.fbq('init', FACEBOOK_PIXEL_ID);
+      window.fbq('track', 'PageView');
+    }
+  }, []);
+
   const submitAndRedirect = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+
+    // --- DISPARO DE EVENTO DE CONVERSÃO (LEAD) ---
+    if (window.fbq) {
+      window.fbq('track', 'Lead', {
+        content_name: 'Diagnóstico GMN',
+        status: 'completed'
+      });
+    }
     
     // 1. Gera os dados do diagnóstico instantaneamente (sem IA para não demorar)
     const data = generateDiagnosticData(formData, null);
