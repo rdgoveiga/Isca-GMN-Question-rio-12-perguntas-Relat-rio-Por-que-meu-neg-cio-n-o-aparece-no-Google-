@@ -168,8 +168,9 @@ export const STEPS: QuestionStep[] = [
     id: 14,
     type: 'info',
     progress: 100,
-    title: 'Seu Relatório está pronto!',
-    description: 'Com base nas suas respostas, geramos um diagnóstico estratégico do seu perfil. \n\nClique abaixo para ler seu relatório.'
+    title: 'Sua Análise está Pronta!',
+    // Alteração da copy para foco em vendas/conversão
+    description: 'Identificamos gargalos ocultos que estão fazendo você perder clientes diariamente.\n\nToque no botão abaixo para desbloquear seu diagnóstico e descobrir como dominar sua região no Google.'
   }
 ];
 
@@ -223,6 +224,68 @@ export const generateDiagnosticData = (data: FormData, aiAnalysis?: string | nul
 
   const overallScore = Math.round((visibilidadeScore + autoridadeScore + engajamentoScore) / 3);
   
+  // --- LÓGICA DE INSIGHT DINÂMICO ---
+  let mainInsight = "";
+  let archetype = "";
+  let urgencyLabel = "";
+
+  // Identificar o pilar mais crítico
+  const scores = [
+    { id: 'vis', val: visibilidadeScore, name: 'Visibilidade' },
+    { id: 'aut', val: autoridadeScore, name: 'Autoridade' },
+    { id: 'eng', val: engajamentoScore, name: 'Engajamento' }
+  ];
+  // Ordena do menor para o maior
+  scores.sort((a, b) => a.val - b.val);
+  const lowestPilar = scores[0];
+
+  // Geração de Arquétipo e Urgência baseada no Score Geral + Pilar Fraco
+  if (overallScore < 30) {
+    archetype = "Fantasma Digital";
+    urgencyLabel = "CRÍTICO";
+  } else if (overallScore < 50) {
+    if (lowestPilar.id === 'vis') archetype = "Tesouro Escondido"; // Bom serviço, ninguém vê
+    else if (lowestPilar.id === 'aut') archetype = "Vitrine Vazia"; // Aparece, mas não converte
+    else archetype = "Negócio Estagnado";
+    urgencyLabel = "ALERTA";
+  } else if (overallScore < 75) {
+    archetype = "Gigante Adormecido";
+    urgencyLabel = "OPORTUNIDADE";
+  } else {
+    archetype = "Referência Local";
+    urgencyLabel = "OTIMIZAR";
+  }
+
+  // Geração de Insight "Cirúrgico" baseado no pilar mais fraco e respostas específicas
+  if (lowestPilar.id === 'vis') {
+    // Problema de Visibilidade
+    if (data[4] === 'sim') {
+      mainInsight = "O Google está desviando seus potenciais clientes para a concorrência. Seu perfil existe, mas sem as palavras-chave certas indexadas, você perde a 'batalha da primeira página' diariamente.";
+    } else if (data[3] === 'nao_aparece' || data[3] === 'quase_nunca') {
+      mainInsight = "Seu negócio é invisível para quem não te conhece. Hoje, você depende 100% de indicações ou tráfego pago, pois o Google Orgânico (gratuito) não está trabalhando a seu favor.";
+    } else {
+      mainInsight = "Seu posicionamento geográfico está limitado. Você aparece apenas para quem está muito perto, perdendo clientes de bairros vizinhos que buscam pelo seu serviço e encontram outros.";
+    }
+  } else if (lowestPilar.id === 'aut') {
+    // Problema de Autoridade
+    if (data[5] === 'nenhuma' || data[5] === '1_10') {
+      mainInsight = "Você sofre do 'Efeito Restaurante Vazio'. O cliente te encontra, mas ao ver poucas avaliações, sente insegurança e clica no concorrente que tem mais prova social, mesmo que o serviço dele seja inferior.";
+    } else if (data[8] === 'nao' || data[8] === 'mais_menos') {
+      mainInsight = "Sua vitrine digital está desarrumada. Fotos antigas ou informações incompletas passam a impressão de amadorismo, fazendo com que clientes qualificados descartem sua empresa antes mesmo de ligar.";
+    } else {
+      mainInsight = "Falta validação externa. Você tem visibilidade, mas sua taxa de conversão é baixa porque seu perfil não transmite a autoridade de um líder de mercado na sua região.";
+    }
+  } else {
+    // Problema de Engajamento/Manutenção (Eng) ou Score Alto Geral
+    if (overallScore > 80) {
+      mainInsight = "Você já domina o básico, mas está deixando dinheiro na mesa ao não usar recursos avançados. Pequenos ajustes de SEO semântico podem blindar sua posição contra novos concorrentes.";
+    } else if (data[6] === 'raramente' || data[6] === 'nunca') {
+      mainInsight = "O algoritmo do Google odeia perfis 'abandonados'. Ao não responder avaliações ou postar atualizações, o robô entende que a empresa fechou ou não se importa, derrubando seu alcance gradativamente.";
+    } else {
+      mainInsight = "Seu perfil sofre do 'Efeito Gangorra'. Você sobe e desce nos resultados porque não tem uma rotina de alimentação de dados (fotos/posts) que sinalize 'frescor' (freshness) constante para o Google.";
+    }
+  }
+
   const categories: ReportCategory[] = [
     {
       id: 'vis',
@@ -230,52 +293,34 @@ export const generateDiagnosticData = (data: FormData, aiAnalysis?: string | nul
       score: visibilidadeScore,
       status: visibilidadeScore < 40 ? 'critical' : visibilidadeScore < 75 ? 'warning' : 'optimal',
       findings: visibilidadeScore < 40 
-        ? ['Inexistência de ranking para palavras-chave principais.', 'Concorrência domina 100% da área de cobertura.'] 
+        ? ['Ranking inexistente para termos de compra.', 'Concorrência capturando >80% da demanda local.'] 
         : visibilidadeScore < 75 
-        ? ['Aparece intermitentemente apenas para buscas específicas.', 'Padrão de ranking instável (Efeito Gangorra).']
-        : ['Excelente posicionamento geográfico.', 'Domínio das primeiras posições locais.']
+        ? ['Visibilidade instável (aparece e some).', 'Indexação fraca para bairros vizinhos.']
+        : ['Excelente domínio geográfico.', 'Primeiras posições consolidadas.']
     },
     {
       id: 'aut',
-      title: 'Autoridade e Trust',
+      title: 'Autoridade e Confiança',
       score: autoridadeScore,
       status: autoridadeScore < 40 ? 'critical' : autoridadeScore < 75 ? 'warning' : 'optimal',
       findings: autoridadeScore < 40
-        ? ['Vazio de confiança: zero ou baixas avaliações.', 'Identidade visual amadora ou desatualizada.']
+        ? ['Gatilho de prova social ausente (poucas estrelas).', 'Percepção de marca inferior à qualidade real.']
         : autoridadeScore < 75
-        ? ['Volume de avaliações insuficiente para gerar segurança absoluta.', 'Falta de prova social constante.']
-        : ['Perfil transmite segurança e liderança de mercado.', 'Forte presença de depoimentos positivos.']
+        ? ['Volume de avaliações não blinda contra concorrentes.', 'Falta de respostas gera desconfiança.']
+        : ['Perfil transmite alta credibilidade.', 'Marca consolidada digitalmente.']
     },
     {
       id: 'eng',
-      title: 'Atividade e Sinais',
+      title: 'Saúde do Algoritmo',
       score: engajamentoScore,
       status: engajamentoScore < 40 ? 'critical' : engajamentoScore < 75 ? 'warning' : 'optimal',
       findings: engajamentoScore < 40
-        ? ['Sinal de abandono detectado pelo robô do Google.', 'Ausência crítica de interação com usuários.']
+        ? ['Sinal de "Abandono Digital" ativado.', 'Algoritmo reduzindo entrega por inatividade.']
         : engajamentoScore < 75
-        ? ['Atualizações esporádicas prejudicam a "freshness".', 'Taxa de resposta abaixo do ideal estratégico.']
-        : ['Perfil altamente ativo com alimentação constante de dados.', 'Excelente engajamento com o público.']
+        ? ['Frequência irregular de posts/fotos.', 'Interação reativa em vez de proativa.']
+        : ['Excelente sinalização de "Freshness".', 'Alta afinidade com o robô do Google.']
     }
   ];
-
-  let archetype = "";
-  let urgencyLabel = "";
-  let mainInsight = "";
-
-  if (overallScore < 35) {
-    archetype = "Inexistente";
-    urgencyLabel = "CRÍTICO";
-    mainInsight = "Seu perfil está tecnicamente 'invisível'. O Google não confia no seu negócio o suficiente para indicá-lo aos clientes da sua região.";
-  } else if (overallScore < 60) {
-    archetype = "Subutilizado";
-    urgencyLabel = "ALERTA";
-    mainInsight = "Você tem uma ferramenta potente, mas está usando apenas 20% da capacidade. A concorrência está capturando leads que deveriam ser seus.";
-  } else {
-    archetype = "Otimizável";
-    urgencyLabel = "OPORTUNIDADE";
-    mainInsight = "Seu perfil é bom, mas faltam ajustes finos de indexação para você dominar completamente a primeira posição e aumentar o ticket médio.";
-  }
 
   return {
     overallScore,
