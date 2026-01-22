@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   ChevronLeft, RotateCcw, CheckCircle2, FileText, AlertTriangle, 
@@ -181,11 +182,26 @@ const App: React.FC = () => {
           </h1>
           {currentStep.subtitle && <p className="text-center text-gray-400 mb-8 font-bold text-[11px] leading-relaxed uppercase tracking-wider">{currentStep.subtitle}</p>}
            
-           {/* Descrição da tela final */}
+           {/* Renderização Condicional da Descrição */}
            {currentStep.description && (
-             <p className="text-center text-gray-600 font-medium text-sm leading-relaxed mb-8 whitespace-pre-line animate-slide-up">
-               {currentStep.description}
-             </p>
+             <div className={`animate-slide-up ${currentStep.type === 'info' ? 'mb-8' : 'mb-8'}`}>
+               {currentStep.type === 'info' ? (
+                  // Estilo Padrão para Tela Final
+                  <p className="text-center text-gray-600 font-medium text-sm leading-relaxed whitespace-pre-line">
+                    {currentStep.description}
+                  </p>
+               ) : (
+                  // Estilo Disclaimer para Perguntas (ex: Estatística do Google)
+                  <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-[1.5rem] flex items-start gap-3 shadow-sm mx-1">
+                    <div className="bg-blue-100 p-1.5 rounded-full shrink-0 mt-0.5">
+                      <AlertCircle className="text-blue-600 w-4 h-4" />
+                    </div>
+                    <p className="text-sm text-gray-800 font-semibold leading-relaxed text-left">
+                      {currentStep.description.replace(/^\(|\)$/g, '')}
+                    </p>
+                  </div>
+               )}
+             </div>
            )}
           
           {currentStep.type === 'text' ? (

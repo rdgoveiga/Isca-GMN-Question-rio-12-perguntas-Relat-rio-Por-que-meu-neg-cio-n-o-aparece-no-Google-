@@ -35,7 +35,7 @@ export const STEPS: QuestionStep[] = [
     id: 2,
     type: 'radio',
     progress: 10,
-    title: 'Hoje, você recebe contatos pelo Google com que frequência?',
+    title: 'Hoje, o Google gera contatos reais para o seu negócio com que frequência?',
     options: [
       { id: 'todos_dias', label: 'Todos os dias' },
       { id: 'semana', label: 'Algumas vezes na semana' },
@@ -50,6 +50,7 @@ export const STEPS: QuestionStep[] = [
     progress: 20,
     title: 'Quando você pesquisa seu serviço no Google, o seu perfil aparece:',
     subtitle: '(Ex: Nutricionista em São Paulo ou Pizzaria em Brasília)',
+    description: '(94% dos Clientes que buscam um produto ou serviço no Google, costumam escolher os primeiros resultados)',
     options: [
       { id: 'primeiros', label: 'Entre os primeiros resultados' },
       { id: 'demora', label: 'Aparece, mas demora' },
@@ -86,7 +87,7 @@ export const STEPS: QuestionStep[] = [
     id: 6,
     type: 'radio',
     progress: 50,
-    title: 'Você costuma responder avaliações no Google?',
+    title: 'Você responde avaliações estrategicamente para atrair novos clientes?',
     options: [
       { id: 'sempre', label: 'Sempre' },
       { id: 'as_vezes', label: 'Às vezes' },
@@ -137,7 +138,7 @@ export const STEPS: QuestionStep[] = [
     id: 10,
     type: 'radio',
     progress: 85,
-    title: 'O que mais mudaria no seu negócio se o Google gerasse clientes toda semana?',
+    title: 'Se o Google começasse a gerar clientes toda semana, o que mudaria primeiro no seu negócio?',
     options: [
       { id: 'agenda', label: 'Agenda mais previsível' },
       { id: 'independencia', label: 'Menos dependência de indicação' },
@@ -174,7 +175,7 @@ export const STEPS: QuestionStep[] = [
     progress: 100,
     title: 'Sua Análise está Pronta!',
     // Alteração da copy para foco em vendas/conversão
-    description: 'Identificamos gargalos ocultos que estão fazendo você perder clientes diariamente.\n\nToque no botão abaixo para desbloquear seu diagnóstico e descobrir como dominar sua região no Google.'
+    description: 'Identificamos gargalos ocultos que estão fazendo você perder clientes diariamente.\n\nApós o envio, você receberá um diagnóstico personalizado direto no WhatsApp.\n\nToque no botão abaixo para desbloquear seu diagnóstico e descobrir como dominar sua região no Google.'
   }
 ];
 
